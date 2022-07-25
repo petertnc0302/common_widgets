@@ -10,6 +10,10 @@ class StepHorizontalView<T> extends StatelessWidget {
   final Color? errorColor;
   final double? lineWidth;
   final Widget Function(T)? titleBuilder;
+  final Widget Function(T)? icon;
+  final bool isErrorLine;
+  final bool isCenterIcon;
+  final double iconSize;
 
   const StepHorizontalView({
     Key? key,
@@ -22,30 +26,45 @@ class StepHorizontalView<T> extends StatelessWidget {
     this.inProgressColor,
     this.errorColor,
     this.titleBuilder,
-  }) : super(key: key);
+    this.icon,
+    this.isErrorLine = false,
+    this.isCenterIcon = true,
+    this.iconSize = 24,
+  }) : assert(currentStep <= items.length - 1),
+        assert(currentStep >= 0),
+        super(key: key);
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: double.maxFinite,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: _iconViews(),
+      children: _iconViews(context),
     ),
   );
 
-  List<Widget> _iconViews() {
+  List<Widget> _iconViews(BuildContext context) {
+    final theme = Theme.of(context);
     final _lineHeight = lineHeight/2;
     var list = <Widget>[];
     items.asMap().forEach((index, item) {
-      final iconColor = currentStep == 0 || index <= currentStep ? activeColor : inActiveColor;
-      final lineColor = index <= currentStep ? iconColor : inActiveColor;
-      final lineColor2 = currentStep > index? iconColor : inActiveColor;
+      Color iconColor = index == 0 || index <= currentStep ? activeColor ?? theme.primaryColor : inActiveColor ?? theme.disabledColor;
+      Color lineColor = index <= currentStep ? iconColor : inActiveColor ?? theme.disabledColor;
+      Color lineColor2 = currentStep > index ? iconColor : inActiveColor ?? theme.disabledColor;
+
+      if ((currentStep == index) && errorColor != null && isErrorLine) {
+        lineColor = errorColor ?? Colors.red;
+      }
+      if ((currentStep == index + 1) && errorColor != null && isErrorLine) {
+        lineColor2 = errorColor ?? Colors.red;
+      }
+
       if (index != 0 && index < items.length) {
         list.add(
           Row(
             children: [
               SizedBox(
-                width: 24,
+                width: iconSize,
                 child: Center(
                   child: Container(
                     height: _lineHeight,
@@ -59,42 +78,31 @@ class StepHorizontalView<T> extends StatelessWidget {
           ),
         );
       }
-
-      /*
-      * Expanded(
-                      child: Container(
-                        width: lineWidth,
-                        color: lineColor,
-                      ),
-                    ),
-                    *
-                    * Icon(
-                      Icons.map,
-                      color: errorColor != null && currentStep == index ? errorColor : iconColor,
-                      size: 24,
-                    ),
-                    *
-                    *               Expanded(child: titleBuilder?.call(item) ?? const SizedBox())
-
-      * */
-
       list.add(
         IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Expanded(
+                  if (isCenterIcon) Expanded(
                     child: Container(
-                      width: 2,
-                      decoration: BoxDecoration(color: index == 0 ? Colors.transparent : lineColor2),
+                      width: lineWidth,
+                      decoration: BoxDecoration(color: index == 0 ? Colors.transparent : lineColor),
                     ),
                   ),
-                  Icon(
-                    Icons.map,
-                    color: errorColor != null && currentStep == index ? errorColor : iconColor,
-                    size: 24,
+                  Container(
+                    width: iconSize,
+                    height: iconSize,
+                    alignment: Alignment.center,
+                    child: icon?.call(item) ??
+                        Icon(
+                          Icons.circle,
+                          color: errorColor != null && currentStep == index ? errorColor : iconColor,
+                          size: iconSize,
+                        ),
                   ),
                   if (index < items.length - 1) Expanded(
                     child: Container(
@@ -104,8 +112,13 @@ class StepHorizontalView<T> extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(width: 8),
-              Flexible(child: titleBuilder?.call(item) ?? const SizedBox())
+              if (titleBuilder != null) ...[
+                const SizedBox(width: 8),
+                Flexible(child: Container(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: titleBuilder?.call(item) ?? const SizedBox(),
+                ))
+              ],
             ],
           ),
         ),
@@ -116,7 +129,7 @@ class StepHorizontalView<T> extends StatelessWidget {
           Row(
             children: [
               SizedBox(
-                width: 24,
+                width: iconSize,
                 child: Center(
                   child: Container(
                     height: _lineHeight,
